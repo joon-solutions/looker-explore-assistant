@@ -65,7 +65,7 @@ module "cf-backend-project-services" {
 
 
 resource "time_sleep" "wait_after_apis_activate" {
-  depends_on      = [
+  depends_on = [
     time_sleep.wait_after_basic_apis_activate,
     module.cf-backend-project-services,
     module.bg-backend-project-services
@@ -82,6 +82,17 @@ resource "google_bigquery_dataset" "dataset" {
 }
 
 module "cloud_run_backend" {
+  count                  = var.use_cloud_run_backend ? 1 : 0
+  source                 = "./cloudrun"
+  project_id             = var.project_id
+  deployment_region      = var.deployment_region
+  image                  = var.image
+  cloud_run_service_name = var.cloud_run_service_name
+
+  depends_on = [time_sleep.wait_after_apis_activate]
+}
+
+module "cloud_function_backend" {
   count                  = var.use_cloud_function_backend ? 1 : 0
   source                 = "./cloud_function"
   project_id             = var.project_id
@@ -100,4 +111,9 @@ module "bigquery_backend" {
   connection_id     = var.connection_id
 
   depends_on = [time_sleep.wait_after_apis_activate, google_bigquery_dataset.dataset]
+}
+
+output "cloud_run_uri" {
+  description = "Cloud Run URI"
+  value       = var.use_cloud_run_backend ? module.cloud_run_backend[0].cloud_run_uri : null
 }
