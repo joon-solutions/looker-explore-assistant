@@ -1,0 +1,15 @@
+version: '3'
+# docker compose is for local development; checkout deploy_cloud_run.sh for cloud run deployment
+services:
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - "./.env"
+    volumes:
+      # mount your local creds here
+      - "/home/ken/dev/joons-docker/EVERYTHING/joons/genai/looker-explore-assistant/explore-assistant-cloud-run/service_account.json:/root/.config/gcloud/application_default_credentials.json"
+      - "/home/ken/dev/joons-docker/EVERYTHING/joons/genai/looker-explore-assistant/explore-assistant-cloud-run/logs:/app/logs"
