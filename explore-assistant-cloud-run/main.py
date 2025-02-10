@@ -24,11 +24,11 @@
 import os
 import logging
 import json
-import vertexai
 import mysql.connector
 from flask import Flask, request, Response
 from flask_cors import CORS
 from datetime import datetime, timezone
+from dotenv import load_dotenv; load_dotenv()
 
 
 from helper_functions import (
@@ -37,7 +37,6 @@ from helper_functions import (
     CLOUD_SQL_PASSWORD,
     CLOUD_SQL_DATABASE,
     get_response_headers,
-    has_valid_signature,
     verify_looker_user,
     get_user_from_db,
     create_new_user,
@@ -46,27 +45,13 @@ from helper_functions import (
     add_feedback,
     generate_response,
     record_prompt,
-    generate_looker_query
+    generate_looker_query,
+    validate_bearer_token
 )
 logging.basicConfig(level=logging.INFO)
 
 
-# Initialize the Vertex AI
-project = os.environ.get("PROJECT")
-location = os.environ.get("REGION")
-vertex_cf_auth_token = os.environ.get("VERTEX_CF_AUTH_TOKEN")
-model_name = os.environ.get("MODEL_NAME", "gemini-1.0-pro-001")
-oauth_client_id = os.environ.get("OAUTH_CLIENT_ID")
-is_dev_server = os.environ.get("IS_DEV_SERVER")
-# checks env var before initiate server
-if (
-    not project or
-    not location or 
-    not oauth_client_id
-    ):
-    raise ValueError("one of environment variables is not set. Please check your delpoyment settings.")
 
-vertexai.init(project=project, location=location)
 
 # Flask app for running as a web server
 def create_flask_app():
@@ -89,9 +74,9 @@ def create_flask_app():
             logging.warning("Missing 'contents' parameter in request")
             return Response(json.dumps("Missing 'contents' parameter"), 400, headers=get_response_headers(), mimetype='application/json')
 
-        if not has_valid_signature(request):
+        if not validate_bearer_token(request):
             logging.warning("Invalid bearer token detected")
-            return Response(json.dumps("Invalid token"), 401, headers=get_response_headers(), mimetype='application/json')
+            return Response(json.dumps({"error": "Invalid token"}), 401, headers=get_response_headers(), mimetype='application/json')
 
         try:
             logging.info(f"Generating Looker query for contents: {contents}")
@@ -123,8 +108,8 @@ def create_flask_app():
         name = incoming_request["name"]
         email = incoming_request["email"]
 
-        if not has_valid_signature(request):
-            return Response(json.dumps({"error": "Invalid signature"}), 403, headers=get_response_headers(), mimetype='application/json')
+        if not validate_bearer_token(request):
+            return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
         if not verify_looker_user(user_id):
             return Response(json.dumps({"error": "User is not a validated Looker user"}), 403, headers=get_response_headers(), mimetype='application/json')
@@ -143,8 +128,8 @@ def create_flask_app():
         if request.method == "OPTIONS":
             return "", 204, get_response_headers()
 
-        if not has_valid_signature(request):
-            return Response(json.dumps({"error": "Invalid signature"}), 403, headers=get_response_headers(), mimetype='application/json')
+        if not validate_bearer_token(request):
+            return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
         incoming_request = request.get_json()
         user_id = incoming_request.get("user_id")
@@ -171,8 +156,8 @@ def create_flask_app():
         if not all([user_id, chat_id]):
             return Response(json.dumps({"error": "Missing 'user_id' or 'chat_id'"}), 400, headers=get_response_headers(), mimetype='application/json')
 
-        if not has_valid_signature(request):
-            return Response(json.dumps({"error": "Invalid signature"}), 403, headers=get_response_headers(), mimetype='application/json')
+        if not validate_bearer_token(request):
+            return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
         try:
             connection = mysql.connector.connect(
@@ -206,8 +191,8 @@ def create_flask_app():
         if request.method == "OPTIONS":
             return "", 204, get_response_headers()
 
-        if not has_valid_signature(request):
-            return Response(json.dumps({"error": "Invalid signature"}), 403, headers=get_response_headers(), mimetype='application/json')
+        if not validate_bearer_token(request):
+            return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
         incoming_request = request.get_json()
         contents = incoming_request.get("contents")  # The prompt content
@@ -244,8 +229,8 @@ def create_flask_app():
         if request.method == "OPTIONS":
             return "", 204, get_response_headers()
 
-        if not has_valid_signature(request):
-            return Response(json.dumps({"error": "Invalid signature"}), 403, headers=get_response_headers(), mimetype='application/json')
+        if not validate_bearer_token(request):
+            return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
         incoming_request = request.get_json()
         user_id = incoming_request.get("user_id")
@@ -285,8 +270,8 @@ def cloud_function_entrypoint(request):
     if contents is None:
         return Response(json.dumps("Missing 'contents' parameter"), 400, headers=get_response_headers(), mimetype='application/json')
 
-    if not has_valid_signature(request):
-        return Response(json.dumps("Invalid signature"), 403, headers=get_response_headers(), mimetype='application/json')
+    if not validate_bearer_token(request):
+        return Response(json.dumps({"error": "Invalid token"}), 403, headers=get_response_headers(), mimetype='application/json')
 
     try:
         response_text = generate_looker_query(contents, parameters)

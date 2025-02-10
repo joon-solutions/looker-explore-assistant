@@ -12,10 +12,8 @@ import uuid
 from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
 
 # Configuration (Best practice: use a dedicated config management library)
-PROJECT = os.environ.get("PROJECT_NAME")
-REGION = os.environ.get("REGION_NAME")
-VERTEX_CF_AUTH_TOKEN = os.environ.get("VERTEX_CF_AUTH_TOKEN")
-VERTEX_CF_SECRET = os.getenv("VERTEX_CF_SECRET")
+PROJECT = os.getenv("PROJECT_NAME")
+REGION = os.getenv("REGION_NAME")
 LOOKER_API_URL = os.getenv("LOOKER_API_URL", "https://looker.example.com/api/4.0")
 LOOKER_CLIENT_ID = os.getenv("LOOKER_CLIENT_ID")
 LOOKER_CLIENT_SECRET = os.getenv("LOOKER_CLIENT_SECRET")
@@ -26,12 +24,55 @@ CLOUD_SQL_DATABASE = os.getenv("CLOUD_SQL_DATABASE")
 BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "beck_explore_assistant")
 BIGQUERY_TABLE = os.getenv("BIGQUERY_TABLE", "_prompts")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.0-pro-001") # Get the model name
+IS_DEV_SERVER = os.getenv("IS_DEV_SERVER")
+OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
+
+if (
+    not PROJECT or
+    not REGION or
+    not OAUTH_CLIENT_ID
+):
+    raise ValueError("Missing required environment variables.")
 
 logging.basicConfig(level=logging.INFO)
 
 # Initialize the Vertex AI model globally
 vertexai.init(project=PROJECT, location=REGION)
 model = GenerativeModel(MODEL_NAME)
+
+def validate_bearer_token(request):
+    
+    if IS_DEV_SERVER:
+        # bypass for local development server
+        return True
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        logging.error("Missing or malformed Authorization header")
+        return False
+
+    token = auth_header.split(' ')[1]
+    try:
+        # Validate access token using Google's tokeninfo endpoint
+        response = requests.get(f'https://oauth2.googleapis.com/tokeninfo?access_token={token}')
+
+        if response.status_code == 200:
+            token_info = response.json()
+            # Verify the token was issued for our client ID
+            expected_client_id = OAUTH_CLIENT_ID
+            if token_info.get('azp') != expected_client_id:
+                logging.error(f"Token was issued for different client ID: {token_info.get('azp')}")
+                return False
+
+            logging.info(f"Token verification successful. Info: {token_info}")
+            return True
+
+        logging.error(f"Token validation failed with status code: {response.status_code}")
+        logging.error(f"Response content: {response.text}")
+        return False
+
+    except Exception as e:
+        logging.error(f"Token validation failed with unexpected error: {str(e)}")
+        return False
 
 def get_response_headers():
     return {
@@ -40,22 +81,6 @@ def get_response_headers():
         "Access-Control-Allow-Headers": "Content-Type, X-Signature, Authorization",
     }
 
-
-def has_valid_signature(request):
-    signature = request.headers.get("X-Signature")
-    if not signature:
-        logging.warning("Missing signature")
-        return False
-
-    if not VERTEX_CF_SECRET:
-        raise ValueError("VERTEX_CF_SECRET environment variable not set")
-
-    secret = VERTEX_CF_SECRET.encode("utf-8")
-    request_data = request.get_data()
-    hmac_obj = hmac.new(secret, request_data, "sha256")
-    expected_signature = hmac_obj.hexdigest()
-
-    return hmac.compare_digest(signature.encode('utf-8'), expected_signature.encode('utf-8'))
 
 
 def verify_looker_user(user_id):
