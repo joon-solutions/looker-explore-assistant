@@ -1,14 +1,13 @@
 # helper_functions.py
 
 import os
-import hmac
 import logging
 import mysql.connector
 import requests
 import vertexai
 from requests.auth import HTTPBasicAuth
 from google.cloud import bigquery
-import uuid
+from contextlib import contextmanager
 from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
 
 # Configuration (Best practice: use a dedicated config management library)
@@ -23,14 +22,16 @@ CLOUD_SQL_PASSWORD = os.getenv("CLOUD_SQL_PASSWORD")
 CLOUD_SQL_DATABASE = os.getenv("CLOUD_SQL_DATABASE")
 BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "beck_explore_assistant")
 BIGQUERY_TABLE = os.getenv("BIGQUERY_TABLE", "_prompts")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.0-pro-001") # Get the model name
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.0-pro-001")
 IS_DEV_SERVER = os.getenv("IS_DEV_SERVER")
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 
 if (
     not PROJECT or
     not REGION or
-    not OAUTH_CLIENT_ID
+    not OAUTH_CLIENT_ID or 
+    not LOOKER_CLIENT_ID or 
+    not LOOKER_CLIENT_SECRET
 ):
     raise ValueError("Missing required environment variables.")
 
@@ -39,6 +40,18 @@ logging.basicConfig(level=logging.INFO)
 # Initialize the Vertex AI model globally
 vertexai.init(project=PROJECT, location=REGION)
 model = GenerativeModel(MODEL_NAME)
+
+@contextmanager
+def mysql_connection():
+    connection = None
+    try:
+        connection = mysql.connector.connect(
+            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
+        )
+        yield connection
+    finally:
+        if connection is not None and connection.is_connected():
+            connection.close()
 
 def validate_bearer_token(request):
     
@@ -97,106 +110,69 @@ def verify_looker_user(user_id):
     return False
 def get_user_from_db(user_id):
     try:
-        connection = mysql.connector.connect(
-            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
-        )
-        cursor = connection.cursor(dictionary=True) # Use dictionary cursor
-        query = "SELECT user_id, name, email FROM users WHERE user_id = %s"
-        cursor.execute(query, (user_id,))
-        user_data = cursor.fetchone()
-        return user_data
+        with mysql_connection() as connection:
+            with connection.cursor(dictionary=True) as cursor:
+                query = "SELECT user_id, name, email FROM users WHERE user_id = %s"
+                cursor.execute(query, (user_id,))
+                user_data = cursor.fetchone()
+                return user_data
     except mysql.connector.Error as e:
         logging.error(f"Database error in get_user_from_db: {e}")
         return None
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
-
 
 def create_new_user(user_id, name, email):
     try:
-        connection = mysql.connector.connect(
-            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
-        )
-        cursor = connection.cursor()
-        query = "INSERT INTO users (user_id, name, email) VALUES (%s, %s, %s)"
-        cursor.execute(query, (user_id, name, email))
-        connection.commit()
-        return {"user_id": user_id, "status": "created"}  # Consider returning more data
+        with mysql_connection() as connection:
+            with connection.cursor() as cursor:
+                query = "INSERT INTO users (user_id, name, email) VALUES (%s, %s, %s)"
+                cursor.execute(query, (user_id, name, email))
+                connection.commit()
+                return {"user_id": user_id, "status": "created"}
     except mysql.connector.Error as e:
         logging.error(f"Database error in create_new_user: {e}")
-        connection.rollback() # Rollback on error
         return {"error": "Failed to create user", "details": str(e)}
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
-
 
 def create_chat_thread(user_id, explore_key):
     try:
-        connection = mysql.connector.connect(
-            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
-        )
-        cursor = connection.cursor()
-        query = "INSERT INTO chats (explore_key, user_id) VALUES (%s, %s)"
-        cursor.execute(query, (explore_key, user_id))
-        connection.commit()
-        chat_id = cursor.lastrowid
-        return chat_id
+        with mysql_connection() as connection:
+            with connection.cursor() as cursor:
+                query = "INSERT INTO chats (explore_key, user_id) VALUES (%s, %s)"
+                cursor.execute(query, (explore_key, user_id))
+                connection.commit()
+                chat_id = cursor.lastrowid
+                return chat_id
     except mysql.connector.Error as e:
         logging.error(f"Database error in create_chat_thread: {e}")
-        connection.rollback()
         return None
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 def add_message(chat_id, user_id, content, is_user_message=1):
     try:
-        connection = mysql.connector.connect(
-            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
-        )
-        cursor = connection.cursor()
-        query = "INSERT INTO messages (chat_id, user_id, content, is_user_message) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (chat_id, user_id, content, is_user_message))
-        connection.commit()
-        message_id = cursor.lastrowid
-        return message_id
+        with mysql_connection() as connection:
+            with connection.cursor() as cursor:
+                query = "INSERT INTO messages (chat_id, user_id, content, is_user_message) VALUES (%s, %s, %s, %s)"
+                cursor.execute(query, (chat_id, user_id, content, is_user_message))
+                connection.commit()
+                message_id = cursor.lastrowid
+                return message_id
     except mysql.connector.Error as e:
         logging.error(f"Database error in add_message: {e}")
-        connection.rollback()
         return None
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
-
 
 def add_feedback(user_id, message_id, feedback_text, is_positive):
     try:
-        connection = mysql.connector.connect(
-            host=CLOUD_SQL_HOST, user=CLOUD_SQL_USER, password=CLOUD_SQL_PASSWORD, database=CLOUD_SQL_DATABASE
-        )
-        cursor = connection.cursor()
-        query = "INSERT INTO feedback (user_id, message_id, feedback_text, is_positive) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (user_id, message_id, feedback_text, is_positive))
-        connection.commit()
-        feedback_id = cursor.lastrowid
-        update_query = "UPDATE messages SET feedback_id = %s WHERE message_id = %s"
-        cursor.execute(update_query, (feedback_id, message_id))
-        connection.commit()
-        return True  # Or return feedback_id
+        with mysql_connection() as connection:
+            with connection.cursor() as cursor:
+                query = "INSERT INTO feedback (user_id, message_id, feedback_text, is_positive) VALUES (%s, %s, %s, %s)"
+                cursor.execute(query, (user_id, message_id, feedback_text, is_positive))
+                connection.commit()
+                feedback_id = cursor.lastrowid
+                update_query = "UPDATE messages SET feedback_id = %s WHERE message_id = %s"
+                cursor.execute(update_query, (feedback_id, message_id))
+                connection.commit()
+                return True
     except mysql.connector.Error as e:
         logging.error(f"Database error in add_feedback: {e}")
-        connection.rollback()
         return False
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 def generate_looker_query(contents, parameters=None):
     default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
