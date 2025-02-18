@@ -20,10 +20,9 @@ service_account.json
 
 __pycache__
 *.pyc
-<<<<<<< Updated upstream
 # terraform
 plan.dat
-=======
 
+# cloud run
+*.log
 misc
->>>>>>> Stashed changes
