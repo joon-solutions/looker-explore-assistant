@@ -71,32 +71,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/")
+@app.post("/", deprecated=True)
 async def base(
     request: Request,
     authorized: bool = Depends(validate_token),
     db: Session = Depends(get_session)
 ):
-    incoming_request = await request.json()
-    contents = incoming_request.get("contents")
-    parameters = incoming_request.get("parameters")
-
-    try:
-        response_text = generate_looker_query(contents, parameters)
-        logger.info(f"endpoint root - LLM response : {response_text}")
-
-        data = [{
-            "message": contents,
-            "parameters": json.dumps(parameters),
-            "response": response_text,
-            "recorded_at": datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S.%f")
-        }]
-        
-        return BaseResponse(message="Query generated successfully", data={"response": response_text})
-    except TimeoutError:
-        raise HTTPException(status_code=504, detail="Request timed out")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": "This endpoint is deprecated. Please use the /message endpoint instead."
+        }
+    )
 
 @app.post("/login")
 async def login(

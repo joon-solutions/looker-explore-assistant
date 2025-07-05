@@ -312,6 +312,10 @@ def add_feedback(**kwargs) -> Feedback:
         raise DatabaseError("Failed to add feedback", str(e))
 
 def generate_looker_query(contents, parameters=None):
+    """
+    DEPRECATED: This function is deprecated and will be removed in a future version.
+    Use generate_response instead.
+    """
     default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
     if parameters:
         default_parameters.update(parameters)
@@ -336,12 +340,26 @@ def generate_looker_query(contents, parameters=None):
     return response.text
 
 def generate_response(contents, parameters=None):
+    try:
+        with open('business_context.md', 'r') as f:
+            business_context = f.read()
+        
+        contents_with_context = f"""**IMPORTANT** this section outlines the key business context to consider for the request.
+<business_context>
+{business_context}
+</business_context>
+
+                {contents}
+"""
+    except FileNotFoundError:
+        contents_with_context = contents
+
     default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
     if parameters:
         default_parameters.update(parameters)
 
     response = model.generate_content(
-        contents=contents,
+        contents=contents_with_context,
         generation_config=GenerationConfig(**default_parameters)
     )
 
