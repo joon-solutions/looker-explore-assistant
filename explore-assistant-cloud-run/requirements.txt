@@ -16,3 +16,7 @@ pytest-asyncio
 sqlmodel==0.0.14
 pymysql==1.1.0
 looker-sdk==25.10.0
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+pandas

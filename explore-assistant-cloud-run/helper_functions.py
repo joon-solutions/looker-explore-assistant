@@ -21,7 +21,8 @@ from looker_sdk.error import SDKError
 load_dotenv()
 # Configuration (Best practice: use a dedicated config management library)
 PROJECT = os.getenv("PROJECT_NAME")
-REGION = os.getenv("REGION_NAME")
+REGION = 'global'
+# REGION = os.getenv("REGION_NAME")
 LOOKER_API_URL = os.getenv("LOOKER_API_URL", "https://looker.example.com/api/4.0")
 LOOKER_CLIENT_ID = os.getenv("LOOKER_CLIENT_ID")
 LOOKER_CLIENT_SECRET = os.getenv("LOOKER_CLIENT_SECRET")
@@ -31,7 +32,7 @@ CLOUD_SQL_PASSWORD = os.getenv("CLOUD_SQL_PASSWORD")
 CLOUD_SQL_DATABASE = os.getenv("CLOUD_SQL_DATABASE")
 BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "beck_explore_assistant")
 BIGQUERY_TABLE = os.getenv("BIGQUERY_TABLE", "_prompts")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.5-pro-002")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 VERTEX_CF_AUTH_TOKEN = os.environ.get("VERTEX_CF_AUTH_TOKEN")
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
@@ -339,28 +340,31 @@ def generate_looker_query(contents, parameters=None):
     logging.info(log_entry)
     return response.text
 
-def generate_response(contents, parameters=None):
+def generate_response(contents, prompt_type):
     try:
         with open('business_context.md', 'r') as f:
             business_context = f.read()
         
-        contents_with_context = f"""**IMPORTANT** this section outlines the key business context to consider for the request.
+        contents_with_context = f"""
+<system instructions>
+{contents}
+</system instructions>
 <business_context>
+This section outlines the key business context to consider for the request.
 {business_context}
 </business_context>
 
-                {contents}
 """
     except FileNotFoundError:
         contents_with_context = contents
 
-    default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
-    if parameters:
-        default_parameters.update(parameters)
+    # default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
+    # if parameters:
+    #     default_parameters.update(parameters)
 
     response = model.generate_content(
-        contents=contents_with_context,
-        generation_config=GenerationConfig(**default_parameters)
+        contents=contents_with_context if prompt_type=='generateExploreUrl' else contents,
+        # generation_config=GenerationConfig(**default_parameters)
     )
 
     metadata = response._raw_response.usage_metadata

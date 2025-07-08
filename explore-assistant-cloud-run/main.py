@@ -262,7 +262,7 @@ async def process_message(
             # the endpoint will now pass the message to LLM and return the results
             response_text = generate_response(
                 request.contents,
-                request.parameters
+                request.prompt_type
                 )
             
             # update the logged message record with LLM response

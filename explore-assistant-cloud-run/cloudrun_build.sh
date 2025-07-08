@@ -33,7 +33,12 @@ docker build -t $IMAGE .
 # docker run -p 8080:8080 gcr.io/$PROJECT_ID/$IMAGE_NAME:$TAG
 
 echo "Pushing Docker image to GCR..."
+# gcloud auth configure-docker $REPOSITORY_REGION --impersonate-service-account looker-genai-poc@one-global-looker-dev.iam.gserviceaccount.com
+
+# PATHC
+gcloud auth activate-service-account --key-file=./sa.json
 gcloud auth configure-docker $REPOSITORY_REGION
+
 
 # Check if repository exists first
 REPO_EXISTS=$(gcloud artifacts repositories list --project=$PROJECT_ID --format="get(name)" | grep -xF "projects/$PROJECT_ID/locations/$REGION_NAME/repositories/$REPO_NAME")
@@ -62,3 +67,7 @@ use_cloud_run_backend=true
 
 
 EOF
+
+
+# gcloud auth revoke
+# gcloud config set account your-user@domain.com
