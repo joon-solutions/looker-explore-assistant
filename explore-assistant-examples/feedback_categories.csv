@@ -1,4 +1,8 @@
 name,description
-Visualization,How well the provided visualization match the user input
-Query accuracy,How accurately the assistant translated the user’s natural language request into the correct query for Looker Explore.
-Other,Other categories not specified
+Incorrect Data/Query Logic,The underlying query logic is mostly incorrect and irrelevant to the questions
+Irrelevant Fields,"The Explore includes fields (dimensions/ measures) that are not relevant to the user's question, making the output"
+Missing Fields,Essential data points (dimensions/ measures) needed to answer the question are omitted from the Explore.
+Incorrect/ Missing Filters,The filters applied (or not applied) in the Explore do not align with the user's request.
+Incorrect Visualization,"The chosen visualization type (e.g., bar chart, pie chart, table) is not suitable for the data or the user's query,"
+Poorly Configured Visualization,"Even if the visualization type is appropriate, its configuration (e.g., axis labels, colors, sorting,"
+Slow Loading,"The generated Looker Explore takes too long to load, impacting user experience."
