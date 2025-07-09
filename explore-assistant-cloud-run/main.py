@@ -39,16 +39,76 @@ from helper_functions import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load business context globally
-BUSINESS_CONTEXT = ""
-try:
-    with open('business_context.md', 'r') as f:
-        BUSINESS_CONTEXT = f.read()
-except FileNotFoundError:
-    logger.warning("business_context.md not found. Running without business context.")
+# Helper function to load file content
+def _load_file_content(filepath: str, default_content: str = "") -> str:
+    try:
+        with open(filepath, 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.warning(f"{filepath} not found. Running without its content.")
+        return default_content
+    except Exception as e:
+        logger.error(f"Error loading {filepath}: {e}")
+        return default_content
+
+# Load business context, Looker docs, and Nuances globally
+BUSINESS_CONTEXT = _load_file_content('business_context.md')
+LOOKER_DOCS = _load_file_content('looker_docs.md')
+NUANCES = _load_file_content('nuances.md')
 
 # Security scheme
 security = HTTPBearer()
+
+# Helper function to inject context into the prompt
+def _inject_context_into_prompt(contents: str, prompt_type: str) -> str:
+    current_datetime = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    datetime_context = f"The current date and time is: {current_datetime}"
+
+    if BUSINESS_CONTEXT and prompt_type != "generateExploreUrl":
+        return f"""
+<system instructions>
+{contents}
+</system instructions>
+<business_context>
+This section outlines the key business context to consider for the request.
+{BUSINESS_CONTEXT}
+</business_context>
+<current_datetime>
+{datetime_context}
+</current_datetime>
+"""
+    elif BUSINESS_CONTEXT and prompt_type == "generateExploreUrl":
+        return f"""
+<system instructions>
+{contents}
+</system instructions>
+<business_context>
+This section outlines the key business context to consider for the request.
+{BUSINESS_CONTEXT}
+</business_context>
+<looker_documentation>
+This section provides overview of looker syntax to guide your looker url generation.
+{LOOKER_DOCS}
+</looker_documentation>
+<current_datetime>
+{datetime_context}
+</current_datetime>
+<nuances>
+These are the nuances to the current lookml that you should consider when generating the looker url:
+{NUANCES}
+</nuances>
+
+"""
+    else:
+        return f"""
+<system instructions>
+{contents}
+</system instructions>
+<current_datetime>
+{datetime_context}
+</current_datetime>
+
+"""
 
 # OAuth validation dependency
 async def validate_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> bool:
@@ -266,23 +326,16 @@ async def process_message(
             # scenario : FE sends the message with valid message id to LLM.
             # the endpoint will now pass the message to LLM and return the results
 
-            # Inject business context
-            contents_with_context = f"""
-<system instructions>
-{request.contents}
-</system instructions>
-<business_context>
-This section outlines the key business context to consider for the request.
-{BUSINESS_CONTEXT}
-</business_context>
-
-""" if BUSINESS_CONTEXT else request.contents
+            contents_with_context = _inject_context_into_prompt(
+                request.contents,
+                request.prompt_type
+            )
 
             response_text = generate_response(
-                contents_with_context, # Pass the modified contents
+                contents_with_context,  # Pass the modified contents
                 request.prompt_type
-                )
-            
+            )
+
             # update the logged message record with LLM response
             request_dict['llm_response'] = response_text
             request_dict['contents'] = contents_with_context

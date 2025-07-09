@@ -20,6 +20,9 @@ COPY helper_functions.py /app/
 COPY database.py /app/
 COPY test.py /app/
 COPY business_context.md /app/
+COPY looker_docs.md /app/
+COPY nuances.md /app/
+
 
 EXPOSE 8080
 # Set the entrypoint to run the FastAPI app
