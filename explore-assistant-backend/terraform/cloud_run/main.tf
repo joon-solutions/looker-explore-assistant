@@ -113,15 +113,15 @@ resource "google_cloud_run_v2_service" "default" {
           cpu    = "1000m"
         }
       }
-      env {
-        name = "admin_token"
-        value_source {
-          secret_key_ref {
-            secret  = "projects/${var.project_number}/secrets/looker-explore-assistant-admin-token"
-            version = "latest"
-          }
-        }
-      }
+      # env {
+      #   name = "admin_token"
+      #   value_source {
+      #     secret_key_ref {
+      #       secret  = "projects/${var.project_number}/secrets/looker-explore-assistant-admin-token"
+      #       version = "latest"
+      #     }
+      #   }
+      # }
       env {
         name = "CLOUD_SQL_HOST"
         value_source {

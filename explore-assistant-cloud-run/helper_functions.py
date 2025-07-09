@@ -22,6 +22,7 @@ load_dotenv()
 # Configuration (Best practice: use a dedicated config management library)
 PROJECT = os.getenv("PROJECT_NAME")
 REGION = 'global'
+MODEL_NAME = "gemini-2.5-pro"
 # REGION = os.getenv("REGION_NAME")
 LOOKER_API_URL = os.getenv("LOOKER_API_URL", "https://looker.example.com/api/4.0")
 LOOKER_CLIENT_ID = os.getenv("LOOKER_CLIENT_ID")
@@ -32,7 +33,6 @@ CLOUD_SQL_PASSWORD = os.getenv("CLOUD_SQL_PASSWORD")
 CLOUD_SQL_DATABASE = os.getenv("CLOUD_SQL_DATABASE")
 BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "beck_explore_assistant")
 BIGQUERY_TABLE = os.getenv("BIGQUERY_TABLE", "_prompts")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 VERTEX_CF_AUTH_TOKEN = os.environ.get("VERTEX_CF_AUTH_TOKEN")
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
@@ -312,60 +312,21 @@ def add_feedback(**kwargs) -> Feedback:
     except Exception as e:
         raise DatabaseError("Failed to add feedback", str(e))
 
-def generate_looker_query(contents, parameters=None):
-    """
-    DEPRECATED: This function is deprecated and will be removed in a future version.
-    Use generate_response instead.
-    """
-    default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
-    if parameters:
-        default_parameters.update(parameters)
-
-    response = model.generate_content(
-        contents=contents,
-        generation_config=GenerationConfig(**default_parameters),
-    )
-
-    metadata = response._raw_response.usage_metadata
-    log_entry = {
-        "severity": "INFO",
-        "message": {
-            "request": contents,
-            "response": response.text,
-            "input_characters": metadata.prompt_token_count,
-            "output_characters": metadata.candidates_token_count,
-        },
-        "component": "explore-assistant-metadata",
-    }
-    logging.info(log_entry)
-    return response.text
-
 def generate_response(contents, prompt_type):
-    try:
-        with open('business_context.md', 'r') as f:
-            business_context = f.read()
-        
-        contents_with_context = f"""
-<system instructions>
-{contents}
-</system instructions>
-<business_context>
-This section outlines the key business context to consider for the request.
-{business_context}
-</business_context>
-
-"""
-    except FileNotFoundError:
-        contents_with_context = contents
-
+    start_time = time.time()
+    logging.info(f"START sending propmt for '{prompt_type}'")
+    
     # default_parameters = {"temperature": 0.2, "max_output_tokens": 500, "top_p": 0.8, "top_k": 40}
     # if parameters:
     #     default_parameters.update(parameters)
-
+    logging.info(f"start propmt {prompt_type}.")
     response = model.generate_content(
-        contents=contents_with_context if prompt_type=='generateExploreUrl' else contents,
+        contents=contents,
         # generation_config=GenerationConfig(**default_parameters)
     )
+    end_time = time.time()
+    duration = end_time - start_time
+    logging.info(f"LLM request ran for {duration:.4f}")
 
     metadata = response._raw_response.usage_metadata
 

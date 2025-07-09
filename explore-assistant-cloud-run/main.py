@@ -26,7 +26,6 @@ from helper_functions import (
     add_message,
     add_feedback,
     generate_response,
-    generate_looker_query,
     DatabaseError,
     _update_message,
     _update_thread,
@@ -39,6 +38,14 @@ from helper_functions import (
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load business context globally
+BUSINESS_CONTEXT = ""
+try:
+    with open('business_context.md', 'r') as f:
+        BUSINESS_CONTEXT = f.read()
+except FileNotFoundError:
+    logger.warning("business_context.md not found. Running without business context.")
 
 # Security scheme
 security = HTTPBearer()
@@ -242,8 +249,6 @@ async def process_message(
     db: Session = Depends(get_session)
 ):
     try:
-
-
         request_dict = request.model_dump()
         if not request.message_id:
             # scenario : FE send request to generate a message ID
@@ -260,13 +265,27 @@ async def process_message(
         elif request.message_id:
             # scenario : FE sends the message with valid message id to LLM.
             # the endpoint will now pass the message to LLM and return the results
+
+            # Inject business context
+            contents_with_context = f"""
+<system instructions>
+{request.contents}
+</system instructions>
+<business_context>
+This section outlines the key business context to consider for the request.
+{BUSINESS_CONTEXT}
+</business_context>
+
+""" if BUSINESS_CONTEXT else request.contents
+
             response_text = generate_response(
-                request.contents,
+                contents_with_context, # Pass the modified contents
                 request.prompt_type
                 )
             
             # update the logged message record with LLM response
             request_dict['llm_response'] = response_text
+            request_dict['contents'] = contents_with_context
             updated_message = _update_message(**request_dict)
 
             logger.info(f"LLM Response: {response_text}")
