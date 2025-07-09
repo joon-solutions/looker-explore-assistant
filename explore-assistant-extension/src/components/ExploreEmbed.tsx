@@ -75,12 +75,9 @@ export const ExploreEmbed = ({ modelName, exploreId, exploreUrl }: ExploreEmbedP
       }
       exploreUrl.split('&').map((param) => {
         const [key, ...rest] = param.split('=')
-        // paramsObj[key] = rest.join('=')
-        if (key === 'filter_expression' || key === 'dynamic_fields') {
-          // console.log('rest', rest)
-          paramsObj[key] = rest.join('=')
-        } else {
-          paramsObj[key] = param.split('=')[1]
+        if (key) {
+          const value = rest.join('=')
+          paramsObj[key] = decodeURIComponent(value);
         }
       })
       el.innerHTML = ''
