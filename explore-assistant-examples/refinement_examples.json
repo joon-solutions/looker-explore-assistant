@@ -6,5 +6,9 @@
   {
     "input": ["show me sales by region", "by product"],
     "output": "show me sales by region and product"
+  },
+  {
+    "input": ["why", "what were the reasons", "what factors contributed to"],
+    "output": "create an explore to analyze the reasons and factors contributing to"
   }
 ]

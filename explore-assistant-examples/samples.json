@@ -1,14 +1,14 @@
 [
     {
-      "category": "Cohorting",
-      "prompt": "Count of Users by first purchase date"
+      "category": "Firm Bookings",
+      "prompt": "How many firm bookings did the Netherlands create for the last 3 complete sales months, and what was the average container count per booking for each sales month?"
     },
     {
-      "category": "Audience Building",
-      "prompt":"Users who have purchased more than 100 dollars worth of Calvin Klein products and have purchased in the last 30 days"
+      "category": "Cancelled Bookings",
+      "prompt": "How many bookings have been cancelled in this fiscal sales year on the Europe/Mediterranean to Asia group service scopes?"
     },
     {
-      "category": "Period Comparison",
-      "prompt": "Total revenue by category this year compared to last year in a line chart with year pivoted"
+      "category": "Firmed Booked Containers",
+      "prompt": "How many firm booked containers (not including container types 'B' and 'Q') were loaded and discharged in France where the first or last vessel was named 'ONE HAMMERSMITH' with a berthing date in April 2025?"
     }
 ]

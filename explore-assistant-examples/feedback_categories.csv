@@ -1,8 +1,4 @@
 name,description
-Incorrect Data/Query Logic,The underlying query logic is mostly incorrect and irrelevant to the questions
-Irrelevant Fields,"The Explore includes fields (dimensions/ measures) that are not relevant to the user's question, making the output"
-Missing Fields,Essential data points (dimensions/ measures) needed to answer the question are omitted from the Explore.
-Incorrect/ Missing Filters,The filters applied (or not applied) in the Explore do not align with the user's request.
-Incorrect Visualization,"The chosen visualization type (e.g., bar chart, pie chart, table) is not suitable for the data or the user's query,"
-Poorly Configured Visualization,"Even if the visualization type is appropriate, its configuration (e.g., axis labels, colors, sorting,"
-Slow Loading,"The generated Looker Explore takes too long to load, impacting user experience."
+Incorrect/ Missing Fields,"The Explore irrelevant or missing measures/ dimensions."
+Incorrect/ Missing Filters, "The filters applied (or not applied) in the Explore do not align with the user's request."
+Other (please scpecify), "This category covers other issues such as slow loading times, unsuitable visualizations, etc."
