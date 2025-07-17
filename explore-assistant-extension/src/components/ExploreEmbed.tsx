@@ -77,7 +77,7 @@ export const ExploreEmbed = ({ modelName, exploreId, exploreUrl }: ExploreEmbedP
         const [key, ...rest] = param.split('=')
         if (key) {
           const value = rest.join('=')
-          paramsObj[key] = decodeURIComponent(value);
+          paramsObj[key] = decodeURIComponent(value.replace(/\+/g, ' '));
         }
       })
       el.innerHTML = ''

@@ -81,7 +81,7 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
   const handleNewChat = () => {
     console.log("In handleNewChat:")
     console.log(currentExplore)
-    if (canReset) {
+    if (canReset && !isQuerying) {
       dispatch(newThreadState(me))
         .unwrap()
         .then((newThread) => {
@@ -101,6 +101,12 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
   }
 
   const handleHistoryClick = (thread: ExploreThread) => {
+    if (isQuerying) {
+      return 
+    }
+      
+
+
     // Reset message pagination for this thread
     dispatch(resetMessagePagination(thread.uuid));
     
@@ -153,6 +159,9 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
   };
 
   const handleClearHistory = () => {
+        if (isQuerying) {
+      return 
+    }
     // Extract thread IDs from history
     const threadIds = history.map(thread => parseInt(thread.uuid));
     
@@ -194,6 +203,9 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
   };
 
   const handleLoadMoreThreads = () => {
+        if (isQuerying) {
+      return 
+    }
     if (pagination && !isLoadingThreads && pagination.threads.hasMore) {
       dispatch(fetchUserThreads({
         limit: pagination.threads.limit,
@@ -236,14 +248,16 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
         </Tooltip>
       </div>
       <div className="p-4 flex items-center">
-        <Tooltip title={'New Chat'} placement="bottom" arrow={false}>
+        <Tooltip title={isQuerying ? 'Please wait for the current query to complete.' : 'New Chat'} placement="bottom" arrow={false}>
           <div
             className={`
               mr-2 flex flex-row items-center
 
               ${
-                canReset
+                canReset && !isQuerying
                   ? 'cursor-pointer bg-gray-300 text-gray-600 hover:text-gray-700'
+                  : isQuerying
+                  ? 'cursor-not-allowed bg-gray-200 text-gray-400 opacity-50'
                   : 'bg-gray-200 text-gray-400'
               }
 
@@ -274,7 +288,7 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
               <div className="flex-grow font-semibold">Recent</div>
               {history.length > 0 && (
                 <div
-                  className="px-4 text-xs text-gray-400 hover:underline cursor-pointer"
+                  className={`px-2 text-xs ${isQuerying ? 'text-gray-300 cursor-not-allowed opacity-50' : 'text-gray-400 hover:underline cursor-pointer'}`}
                   onClick={handleClearHistory}
                 >
                   clear
@@ -298,7 +312,7 @@ const Sidebar = ({ expanded, toggleDrawer, endOfMessagesRef }: SidebarProps) => 
                     arrow
                   >
                     <div
-                      className={`flex items-center cursor-pointer hover:underline`}
+                      className={`flex items-center ${isQuerying ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:underline'}${currentExploreThread && item.uuid === currentExploreThread.uuid ? ' font-bold text-blue-700' : ''}`}
                       onClick={() => handleHistoryClick(item)}
                     >
                       <div className="">
